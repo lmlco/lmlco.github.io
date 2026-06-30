@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="LifeMakersLabs（LML,Co）は、映像・写真・ブランディング・SNS・MEO/SEOを横断するクリエイティブスタジオ。事業の魅力を「選ばれる理由」へ編集します。">
+<meta name="theme-color" content="#0B0B0C">
+<title>LML,Co — LifeMakersLabs ／ 映像で、選ばれる理由をつくる。</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   LML,Co — "Frame by Frame"
+   SCREEN（モニター）と PAGE（印画紙）の二面構成
+   ============================================================ */
+:root{
+  --screen:#0B0B0C;      /* monitor black */
+  --screen-2:#141416;
+  --page:#E7E6E1;        /* cool bone paper (not cream) */
+  --page-2:#DDDCD5;
+  --ink:#111113;         /* text on page */
+  --bone:#E9E8E3;        /* text on screen */
+  --rec:#E5341F;         /* signal red — used < 2% */
+  --grot:"Space Grotesk", system-ui, sans-serif;
+  --mono:"Space Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --jp:"Noto Sans JP", system-ui, "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
+  --edge:clamp(20px, 5vw, 72px);
+  --max:1320px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+
+/* surface contexts ---------------------------------------- */
+.screen{ --bg:var(--screen); --fg:var(--bone); --line:rgba(233,232,227,.18); --line-2:rgba(233,232,227,.32); --muted:rgba(233,232,227,.56); }
+.page{ --bg:var(--page); --fg:var(--ink); --line:rgba(17,17,19,.16); --line-2:rgba(17,17,19,.30); --muted:rgba(17,17,19,.54); }
+
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; background:var(--screen); }
+body{
+  margin:0; background:var(--screen); color:var(--bone);
+  font-family:var(--jp); font-size:16px; line-height:1.8; letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; overflow-x:hidden;
+}
+img,video{ display:block; max-width:100%; }
+a{ color:inherit; text-decoration:none; }
+button,input,textarea{ font:inherit; color:inherit; }
+h1,h2,h3,h4{ margin:0; font-weight:900; }
+p{ margin:0; }
+::selection{ background:var(--rec); color:#fff; }
+:focus-visible{ outline:2px solid var(--rec); outline-offset:3px; }
+
+/* film-grain + faint scanline texture, fixed overlay -------- */
+body::before{
+  content:""; position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* utility type -------------------------------------------- */
+.mono{ font-family:var(--mono); }
+.tag{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--muted);
+}
+.edge{ padding-inline:var(--edge); }
+.shell{ width:min(100%, var(--max)); margin-inline:auto; }
+
+/* ============================================================
+   PERSISTENT TIMECODE HUD  (blend → readable on any surface)
+   ============================================================ */
+.hud{
+  position:fixed; left:var(--edge); bottom:18px; z-index:40;
+  display:flex; align-items:center; gap:12px;
+  font-family:var(--mono); font-size:12px; letter-spacing:.12em; color:#fff;
+  mix-blend-mode:difference; pointer-events:none;
+}
+.hud .tc{ font-weight:700; }
+.hud .sep{ width:18px; height:1px; background:#fff; opacity:.7; }
+.hud .label{ text-transform:uppercase; opacity:.8; }
+.hud.right{ left:auto; right:var(--edge); }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.head{
+  position:fixed; inset:0 0 auto; z-index:30; height:72px;
+  display:flex; align-items:center; justify-content:space-between;
+  padding-inline:var(--edge);
+  mix-blend-mode:difference; color:#fff;
+}
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand .mk{ font-family:var(--grot); font-weight:700; font-size:19px; letter-spacing:-.02em; }
+.brand .mk b{ color:var(--rec); mix-blend-mode:normal; }
+.brand .sub{ font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; opacity:.7; }
+.nav{ display:flex; align-items:center; gap:26px; }
+.nav a{ font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; opacity:.85; position:relative; }
+.nav a::after{ content:""; position:absolute; left:0; right:100%; bottom:-4px; height:1px; background:#fff; transition:right .3s var(--ease); }
+.nav a:hover::after{ right:0; }
+.menu-btn{ display:none; width:42px; height:42px; border:1px solid rgba(255,255,255,.4); background:none; cursor:pointer; align-items:center; justify-content:center; }
+.menu-btn span{ display:block; width:18px; height:1.5px; background:#fff; position:relative; }
+.menu-btn span::before,.menu-btn span::after{ content:""; position:absolute; left:0; width:18px; height:1.5px; background:#fff; transition:transform .3s var(--ease); }
+.menu-btn span::before{ top:-6px; } .menu-btn span::after{ top:6px; }
+body.nav-open .menu-btn span{ background:transparent; }
+body.nav-open .menu-btn span::before{ transform:translateY(6px) rotate(45deg); }
+body.nav-open .menu-btn span::after{ transform:translateY(-6px) rotate(-45deg); }
+
+/* ============================================================
+   HERO  (SCREEN — the monitor / viewfinder)
+   ============================================================ */
+.hero{ position:relative; min-height:100svh; padding:96px var(--edge) calc(var(--edge) + 30px); display:flex; flex-direction:column; }
+.monitor{ position:relative; flex:1; border:1px solid var(--line); overflow:hidden; isolation:isolate; min-height:560px; }
+.monitor video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.05); }
+.monitor::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(11,11,12,.35) 0%, rgba(11,11,12,.05) 30%, rgba(11,11,12,.72) 100%); }
+
+/* viewfinder corner brackets */
+.bracket{ position:absolute; width:34px; height:34px; z-index:3; border:1.5px solid var(--bone); opacity:0; }
+.bracket.tl{ top:16px; left:16px; border-right:0; border-bottom:0; }
+.bracket.tr{ top:16px; right:16px; border-left:0; border-bottom:0; }
+.bracket.bl{ bottom:16px; left:16px; border-right:0; border-top:0; }
+.bracket.br{ bottom:16px; right:16px; border-left:0; border-top:0; }
+.loaded .bracket{ animation:bracketIn .8s var(--ease) forwards; }
+.loaded .bracket.tr{ animation-delay:.06s; } .loaded .bracket.bl{ animation-delay:.12s; } .loaded .bracket.br{ animation-delay:.18s; }
+@keyframes bracketIn{ from{ opacity:0; transform:scale(1.4); } to{ opacity:.9; transform:scale(1); } }
+
+/* REC cluster (top-left inside monitor) */
+.rec{ position:absolute; top:30px; left:30px; z-index:4; display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:12px; letter-spacing:.16em; color:var(--bone); }
+.rec .dot{ width:9px; height:9px; border-radius:50%; background:var(--rec); box-shadow:0 0 12px var(--rec); animation:blink 1.4s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:.25; } }
+.rec .clk{ opacity:.85; }
+
+/* meta top-right inside monitor */
+.mon-meta{ position:absolute; top:30px; right:30px; z-index:4; text-align:right; font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--muted); line-height:1.9; }
+
+/* hero headline block (bottom-left) */
+.hero-copy{ position:absolute; left:30px; right:30px; bottom:30px; z-index:4; color:var(--bone); }
+.hero-kicker{ font-family:var(--mono); font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--bone); opacity:.85; margin-bottom:18px; display:flex; gap:14px; align-items:center; }
+.hero-kicker::before{ content:""; width:42px; height:1px; background:var(--rec); }
+.hero h1{ font-family:var(--jp); font-weight:900; font-size:clamp(38px, 7.4vw, 104px); line-height:.98; letter-spacing:-.02em; }
+.hero h1 .en{ display:block; font-family:var(--grot); font-weight:600; font-size:clamp(13px,1.4vw,17px); letter-spacing:.04em; opacity:.7; margin-top:18px; line-height:1.5; max-width:46ch; }
+.clip{ display:block; overflow:hidden; }
+.clip > span{ display:block; transform:translateY(105%); }
+.loaded .clip > span{ animation:rise 1s var(--ease) forwards; }
+.loaded .clip:nth-child(2) > span{ animation-delay:.1s; }
+@keyframes rise{ to{ transform:translateY(0); } }
+
+.hero-foot{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; padding-top:22px; }
+.btn{
+  display:inline-flex; align-items:center; gap:10px; padding:14px 22px;
+  font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  border:1px solid var(--line-2); background:transparent; color:var(--fg); cursor:pointer;
+  transition:background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+}
+.btn:hover{ background:var(--fg); color:var(--bg); border-color:var(--fg); }
+.btn.solid{ background:var(--rec); border-color:var(--rec); color:#fff; }
+.btn.solid:hover{ background:#fff; color:var(--screen); border-color:#fff; }
+.btn .ar{ transition:transform .25s var(--ease); }
+.btn:hover .ar{ transform:translateX(4px); }
+.hero-cta{ display:flex; gap:12px; flex-wrap:wrap; }
+
+/* ============================================================
+   SECTION SCAFFOLD
+   ============================================================ */
+.sec{ background:var(--bg); color:var(--fg); padding-block:clamp(72px,10vw,140px); position:relative; }
+.sec-head{ display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,.78fr); gap:clamp(24px,5vw,64px); align-items:end; margin-bottom:clamp(40px,6vw,76px); }
+.sec-mark{ font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--rec); display:flex; gap:12px; align-items:center; margin-bottom:20px; }
+.sec-mark span{ color:var(--muted); }
+.sec-head h2{ font-family:var(--jp); font-weight:900; font-size:clamp(30px,4.8vw,62px); line-height:1.02; letter-spacing:-.02em; }
+.sec-head .lead{ color:var(--muted); font-size:clamp(14px,1.3vw,17px); line-height:1.85; }
+
+.reveal{ opacity:0; transform:translateY(26px); transition:opacity .9s var(--ease), transform .9s var(--ease); }
+.reveal.in{ opacity:1; transform:none; }
+
+/* ============================================================
+   INTRO / STATEMENT  (PAGE)
+   ============================================================ */
+.statement{ font-family:var(--jp); font-weight:500; font-size:clamp(22px,3.4vw,46px); line-height:1.5; letter-spacing:-.01em; max-width:22ch; }
+.statement em{ font-style:normal; position:relative; }
+.statement em::after{ content:""; position:absolute; left:0; right:0; bottom:.08em; height:.4em; background:var(--rec); opacity:.9; z-index:-1; }
+.intro-grid{ display:grid; grid-template-columns:1.2fr .8fr; gap:clamp(30px,6vw,80px); align-items:start; }
+.intro-side{ border-top:1px solid var(--line); padding-top:20px; display:grid; gap:18px; }
+.intro-side p{ color:var(--muted); font-size:15px; }
+.intro-figures{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:30px; }
+.fig{ background:var(--bg); padding:22px 18px; }
+.fig b{ display:block; font-family:var(--grot); font-weight:700; font-size:clamp(26px,3.4vw,38px); letter-spacing:-.02em; }
+.fig span{ font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+
+/* ============================================================
+   SERVICES — SHOT LIST + PREVIEW MONITOR  (SCREEN)
+   ============================================================ */
+.edl{ display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(28px,5vw,64px); align-items:start; }
+.shotlist{ border-top:1px solid var(--line); }
+.shot{
+  display:grid; grid-template-columns:64px 1fr auto; gap:18px; align-items:center;
+  padding:24px 6px; border-bottom:1px solid var(--line); cursor:pointer; position:relative;
+  transition:padding-left .3s var(--ease);
+}
+.shot .tcin{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+.shot .role{ font-family:var(--jp); font-weight:700; font-size:clamp(18px,2vw,26px); letter-spacing:-.01em; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.shot .role .en{ font-family:var(--grot); font-weight:600; }
+.shot .role .jp{ font-size:13px; font-weight:500; color:var(--muted); }
+.shot .desc{ grid-column:2; color:var(--muted); font-size:14px; margin-top:6px; max-width:46ch; }
+.shot .idx{ font-family:var(--mono); font-size:12px; color:var(--muted); transition:color .3s var(--ease); }
+.shot::before{ content:""; position:absolute; left:-6px; top:0; bottom:-1px; width:2px; background:var(--rec); transform:scaleY(0); transform-origin:top; transition:transform .3s var(--ease); }
+.shot.active::before,.shot:hover::before{ transform:scaleY(1); }
+.shot.active,.shot:hover{ padding-left:18px; }
+.shot.active .idx,.shot:hover .idx{ color:var(--rec); }
+.shot .thumb-m{ display:none; }
+
+.preview{ position:sticky; top:96px; border:1px solid var(--line); aspect-ratio:4/3; overflow:hidden; }
+.preview img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.04); opacity:0; transition:opacity .5s var(--ease); }
+.preview img.on{ opacity:1; }
+.preview .pbrk{ position:absolute; width:22px; height:22px; border:1.5px solid var(--bone); z-index:2; opacity:.85; }
+.preview .pbrk.tl{ top:14px; left:14px; border-right:0; border-bottom:0; }
+.preview .pbrk.br{ bottom:14px; right:14px; border-left:0; border-top:0; }
+.preview .plabel{ position:absolute; left:16px; bottom:14px; z-index:2; font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--bone); }
+.preview .prec{ position:absolute; top:14px; right:16px; z-index:2; display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--bone); }
+.preview .prec i{ width:7px; height:7px; border-radius:50%; background:var(--rec); animation:blink 1.4s steps(1) infinite; }
+
+/* ============================================================
+   WORKS — CONTACT SHEET  (PAGE)
+   ============================================================ */
+.sheet{ display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(14px,2vw,26px); }
+.frame{ position:relative; }
+.frame .img{ position:relative; overflow:hidden; aspect-ratio:16/10; background:var(--page-2); }
+.frame .img img{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.03); transition:transform 1s var(--ease), filter .5s var(--ease); }
+.frame:hover .img img{ transform:scale(1.05); filter:grayscale(0) contrast(1.05); }
+/* crop ticks */
+.frame .img::before,.frame .img::after{ content:""; position:absolute; z-index:2; pointer-events:none; }
+.frame .img::before{ top:10px; left:10px; width:14px; height:14px; border-left:1.5px solid var(--bone); border-top:1.5px solid var(--bone); }
+.frame .img::after{ bottom:10px; right:10px; width:14px; height:14px; border-right:1.5px solid var(--bone); border-bottom:1.5px solid var(--bone); }
+.frame .cap{ display:flex; justify-content:space-between; gap:14px; align-items:baseline; padding-top:14px; border-top:1px solid var(--line); margin-top:14px; }
+.frame .cap h3{ font-family:var(--jp); font-weight:700; font-size:clamp(16px,1.8vw,22px); letter-spacing:-.01em; }
+.frame .cap p{ color:var(--muted); font-size:13.5px; margin-top:6px; max-width:44ch; }
+.frame .no{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--rec); white-space:nowrap; }
+.frame .tags{ font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:10px; }
+.frame.big{ grid-column:span 7; } .frame.std{ grid-column:span 5; } .frame.half{ grid-column:span 6; }
+
+/* ============================================================
+   PROCESS — TIMELINE  (SCREEN)
+   ============================================================ */
+.timeline{ display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line-2); }
+.tl-node{ padding:30px 24px 30px 0; position:relative; }
+.tl-node::before{ content:""; position:absolute; top:-1px; left:0; width:11px; height:11px; border-radius:50%; background:var(--bg); border:1.5px solid var(--rec); transform:translateY(-50%); }
+.tl-node .tc{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--muted); }
+.tl-node h3{ font-family:var(--grot); font-weight:700; font-size:clamp(18px,2vw,24px); margin:16px 0 6px; }
+.tl-node .jp{ font-family:var(--jp); font-weight:700; font-size:14px; color:var(--fg); }
+.tl-node p{ color:var(--muted); font-size:14px; margin-top:12px; }
+
+/* ============================================================
+   PRICING — SPEC SHEETS  (PAGE; featured = inverted screen)
+   ============================================================ */
+.specs{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.spec{ border:1px solid var(--line); padding:30px; display:flex; flex-direction:column; gap:22px; transition:transform .3s var(--ease); }
+.spec:hover{ transform:translateY(-6px); }
+.spec.feat{ background:var(--screen); color:var(--bone); border-color:var(--screen); --line:rgba(233,232,227,.18); --muted:rgba(233,232,227,.56); }
+.spec .plan{ display:flex; align-items:center; justify-content:space-between; }
+.spec .plan b{ font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
+.spec .plan .pick{ font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--rec); border:1px solid var(--rec); padding:3px 8px; }
+.spec h3{ font-family:var(--jp); font-weight:700; font-size:18px; letter-spacing:-.01em; }
+.spec .price{ font-family:var(--grot); font-weight:700; font-size:clamp(32px,4vw,46px); letter-spacing:-.02em; line-height:1; }
+.spec .price small{ font-family:var(--mono); font-size:13px; font-weight:400; letter-spacing:0; color:var(--muted); }
+.spec ul{ list-style:none; margin:0; padding:18px 0 0; border-top:1px solid var(--line); display:grid; gap:11px; }
+.spec li{ display:grid; grid-template-columns:auto 1fr; gap:11px; font-size:14px; }
+.spec li::before{ content:"—"; color:var(--rec); font-family:var(--mono); }
+.spec .btn{ margin-top:auto; justify-content:center; }
+
+/* ============================================================
+   CONTACT  (SCREEN)
+   ============================================================ */
+.contact-grid{ display:grid; grid-template-columns:1fr .9fr; gap:clamp(36px,6vw,90px); align-items:start; }
+.contact h2{ font-family:var(--jp); font-weight:900; font-size:clamp(34px,6vw,84px); line-height:.98; letter-spacing:-.02em; }
+.contact h2 .en{ display:block; font-family:var(--grot); font-weight:600; font-size:clamp(13px,1.4vw,16px); letter-spacing:.05em; color:var(--muted); margin-top:18px; }
+.contact-list{ list-style:none; margin:34px 0 0; padding:0; display:grid; gap:0; }
+.contact-list li{ display:grid; grid-template-columns:140px 1fr; gap:16px; padding:16px 0; border-top:1px solid var(--line); }
+.contact-list dt{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--rec); }
+.contact-list dd{ margin:0; font-size:14.5px; }
+.form{ display:grid; gap:0; }
+.field{ display:grid; gap:8px; padding:18px 0; border-bottom:1px solid var(--line); }
+.field label{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.field input,.field textarea{ width:100%; background:none; border:0; outline:none; font-family:var(--jp); font-size:16px; color:var(--fg); resize:vertical; padding:4px 0; }
+.field input::placeholder,.field textarea::placeholder{ color:var(--muted); }
+.field.foc{ border-color:var(--rec); }
+.form .btn{ margin-top:26px; }
+.form-note{ font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--muted); margin-top:14px; }
+
+/* ============================================================
+   FOOTER  (SCREEN)
+   ============================================================ */
+.foot{ background:var(--screen); color:var(--bone); padding:clamp(48px,7vw,90px) var(--edge) 40px; --line:rgba(233,232,227,.18); --muted:rgba(233,232,227,.56); }
+.foot-top{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:40px; padding-bottom:40px; border-bottom:1px solid var(--line); }
+.foot .lg{ font-family:var(--grot); font-weight:700; font-size:clamp(34px,6vw,76px); letter-spacing:-.03em; line-height:1; }
+.foot .lg b{ color:var(--rec); }
+.foot .blurb{ max-width:34ch; color:var(--muted); font-size:14px; margin-top:18px; }
+.foot-nav{ display:flex; gap:60px; flex-wrap:wrap; }
+.foot-col{ display:grid; gap:12px; align-content:start; }
+.foot-col h4{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+.foot-col a{ font-size:14px; opacity:.9; transition:color .2s var(--ease); }
+.foot-col a:hover{ color:var(--rec); }
+.foot-bot{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; padding-top:24px; font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:960px){
+  .nav{ position:fixed; inset:72px 14px auto; flex-direction:column; align-items:stretch; gap:0; padding:8px 18px;
+        background:var(--screen); border:1px solid var(--line); mix-blend-mode:normal; color:var(--bone);
+        opacity:0; transform:translateY(-12px); pointer-events:none; transition:opacity .3s var(--ease), transform .3s var(--ease); }
+  body.nav-open .nav{ opacity:1; transform:none; pointer-events:auto; }
+  .nav a{ padding:15px 2px; border-bottom:1px solid var(--line); font-size:14px; }
+  .nav a:last-child{ border:0; }
+  .menu-btn{ display:flex; }
+  .sec-head,.intro-grid,.edl,.contact-grid{ grid-template-columns:1fr; }
+  .timeline{ grid-template-columns:1fr 1fr; }
+  .specs{ grid-template-columns:1fr; }
+  .preview{ display:none; }
+  .shot{ grid-template-columns:54px 1fr; }
+  .shot .idx{ display:none; }
+  .shot .thumb-m{ display:block; grid-column:2; margin-top:14px; aspect-ratio:16/9; overflow:hidden; border:1px solid var(--line); }
+  .shot .thumb-m img{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.04); }
+  .frame.big,.frame.std,.frame.half{ grid-column:span 12; }
+  .intro-figures{ grid-template-columns:1fr; }
+}
+@media (max-width:560px){
+  .head{ height:60px; }
+  .nav{ inset:60px 12px auto; }
+  .hero{ padding-top:78px; }
+  .monitor{ min-height:480px; }
+  .rec,.mon-meta{ top:18px; } .rec{ left:18px; } .mon-meta{ right:18px; }
+  .hero-copy{ left:18px; right:18px; bottom:20px; }
+  .hero-foot{ flex-direction:column; align-items:flex-start; }
+  .hero-cta{ width:100%; } .hero-cta .btn{ flex:1; justify-content:center; }
+  .timeline{ grid-template-columns:1fr; }
+  .contact-list li{ grid-template-columns:1fr; gap:4px; }
+  .foot-nav{ gap:34px; }
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+  .clip > span{ transform:none; } .bracket{ opacity:.9; } .reveal{ opacity:1; transform:none; }
+}
+</style>
+</head>
+
+<body id="top">
+
+<!-- persistent timecode HUD -->
+<div class="hud" aria-hidden="true">
+  <span class="tc" data-tc>00:00:00:00</span>
+  <span class="sep"></span>
+  <span class="label" data-sec>REEL START</span>
+</div>
+<div class="hud right" aria-hidden="true"><span class="label">LML,Co — 2026</span></div>
+
+<header class="head">
+  <a class="brand" href="#top" aria-label="LML,Co トップ">
+    <span class="mk">LML<b>,</b>Co</span>
+    <span class="sub">LifeMakersLabs</span>
+  </a>
+  <nav class="nav" aria-label="メインナビゲーション">
+    <a href="#about">About</a>
+    <a href="#services">Capability</a>
+    <a href="#works">Works</a>
+    <a href="#process">Process</a>
+    <a href="#price">Price</a>
+    <a href="#contact">Contact</a>
+  </nav>
+  <button class="menu-btn" type="button" data-menu aria-label="メニュー" aria-expanded="false"><span></span></button>
+</header>
+
+<main>
+
+<!-- ============ HERO / MONITOR ============ -->
+<section class="hero screen" id="top-hero">
+  <div class="monitor">
+    <video autoplay muted loop playsinline poster="image_crop_and_resize-b586fd7d-ef78-4442-bff4-7b1e2da5390e.jpg">
+      <source src="topmovie.mp4" type="video/mp4">
+    </video>
+    <span class="bracket tl"></span><span class="bracket tr"></span><span class="bracket bl"></span><span class="bracket br"></span>
+
+    <div class="rec"><span class="dot"></span>REC <span class="clk" data-clock>00:00:00:00</span></div>
+    <div class="mon-meta">LML,Co<br>映像 / 写真 / 設計<br>4K · 24fps</div>
+
+    <div class="hero-copy">
+      <p class="hero-kicker">Creative Studio — 神戸／全国対応</p>
+      <h1>
+        <span class="clip"><span>見せ方で、</span></span>
+        <span class="clip"><span>売れ方は変わる。</span></span>
+        <span class="en">事業の魅力を「選ばれる理由」へ編集するクリエイティブスタジオ。映像・写真・ブランディング・SNS・MEO/SEOを、企画から運用までひとつの流れで。</span>
+      </h1>
+      <div class="hero-foot">
+        <div class="hero-cta">
+          <a class="btn solid" href="#works">リールを見る <span class="ar">→</span></a>
+          <a class="btn" href="#contact">プロジェクトを始める</a>
+        </div>
+        <span class="tag">SCROLL TO PLAY ↓</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ABOUT / STATEMENT ============ -->
+<section class="sec page" id="about">
+  <div class="shell edge">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-mark">01 — About <span>／ 私たちの仕事</span></div>
+        <h2>コンテンツは、<br>経営の翻訳装置だ。</h2>
+      </div>
+      <p class="lead">「いい会社なのに伝わっていない」の多くは、商品力ではなく翻訳力の問題。現場の価値を見つけ、言葉にし、画にし、問い合わせ・応募・来店につながる導線へ変換します。</p>
+    </div>
+
+    <div class="intro-grid">
+      <p class="statement reveal">強いブランドは、派手なロゴより<em>「一瞬で伝わる理由」</em>を持っている。私たちはそれを設計する。</p>
+      <div class="intro-side reveal">
+        <p>納品物は、単なるデータではありません。営業資料になり、採用広報になり、Googleマップの第一印象になり、SNSで繰り返し効く“売れる文脈”になります。</p>
+        <p>きれいに見せて終わりにしない。問い合わせ・応募・来店が起きる順番で、情報を組み立てます。</p>
+      </div>
+    </div>
+
+    <div class="intro-figures reveal">
+      <div class="fig"><b>戦略</b><span>Why you win</span></div>
+      <div class="fig"><b>制作</b><span>What they feel</span></div>
+      <div class="fig"><b>運用</b><span>How it grows</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICES / SHOT LIST ============ -->
+<section class="sec screen" id="services">
+  <div class="shell edge">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-mark">02 — Capability <span>／ できること</span></div>
+        <h2>6つの役割を、<br>ひとつのチームで。</h2>
+      </div>
+      <p class="lead">分業で散らかさない。戦略から撮影・編集・運用までを一気通貫で。ショットリストの行にカーソルを合わせると、右のモニターにプレビューが映ります。</p>
+    </div>
+
+    <div class="edl">
+      <div class="shotlist" data-shotlist>
+        <div class="shot active" data-img="image_crop_and_resize-8b3ff45c-deeb-4f0a-8799-f6035e7a08cf.jpg" data-label="BRANDING" tabindex="0">
+          <span class="tcin">00:00</span>
+          <div><div class="role"><span class="en">Branding</span><span class="jp">ブランディング</span></div><p class="desc">理念を、顧客が「ここに頼みたい」と感じる判断材料へ翻訳。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-8b3ff45c-deeb-4f0a-8799-f6035e7a08cf.jpg" alt="ブランド設計"></div></div>
+          <span class="idx">F01</span>
+        </div>
+        <div class="shot" data-img="image_crop_and_resize-b586fd7d-ef78-4442-bff4-7b1e2da5390e.jpg" data-label="VIDEO" tabindex="0">
+          <span class="tcin">02:30</span>
+          <div><div class="role"><span class="en">Video</span><span class="jp">映像制作</span></div><p class="desc">企業PR・採用・商品・ショート。冒頭3秒と視聴後の行動まで設計。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-b586fd7d-ef78-4442-bff4-7b1e2da5390e.jpg" alt="映像制作"></div></div>
+          <span class="idx">F02</span>
+        </div>
+        <div class="shot" data-img="image_crop_and_resize-883c334a-730e-439b-9383-aec8f2a6aa9a.jpg" data-label="PHOTO" tabindex="0">
+          <span class="tcin">05:10</span>
+          <div><div class="role"><span class="en">Photography</span><span class="jp">写真撮影</span></div><p class="desc">空気感と表情。Web・SNS・採用で使い回せる写真資産に。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-883c334a-730e-439b-9383-aec8f2a6aa9a.jpg" alt="写真撮影"></div></div>
+          <span class="idx">F03</span>
+        </div>
+        <div class="shot" data-img="image_crop_and_resize-198b0624-cc3d-472e-8e62-59eba9cd1067.jpg" data-label="SNS" tabindex="0">
+          <span class="tcin">07:45</span>
+          <div><div class="role"><span class="en">SNS</span><span class="jp">運用設計</span></div><p class="desc">ネタ切れしない投稿設計と改善サイクルで“見られるだけ”を卒業。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-198b0624-cc3d-472e-8e62-59eba9cd1067.jpg" alt="SNS運用"></div></div>
+          <span class="idx">F04</span>
+        </div>
+        <div class="shot" data-img="image_crop_and_resize-e0dbb88f-c388-4b47-91df-626518e6aed6.jpg" data-label="MEO / SEO" tabindex="0">
+          <span class="tcin">10:20</span>
+          <div><div class="role"><span class="en">MEO / SEO</span><span class="jp">集客導線</span></div><p class="desc">地図と検索で比較された瞬間に負けない、写真・文章・導線を整備。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-e0dbb88f-c388-4b47-91df-626518e6aed6.jpg" alt="MEO / SEO"></div></div>
+          <span class="idx">F05</span>
+        </div>
+        <div class="shot" data-img="image_crop_and_resize-55fcc920-81e1-4000-8ec6-3ebd9be78a5e.jpg" data-label="PR" tabindex="0">
+          <span class="tcin">12:55</span>
+          <div><div class="role"><span class="en">PR</span><span class="jp">広報</span></div><p class="desc">事業のニュース性を掘り出し、社外に語れるストーリーと素材に。</p>
+            <div class="thumb-m"><img src="image_crop_and_resize-55fcc920-81e1-4000-8ec6-3ebd9be78a5e.jpg" alt="広報"></div></div>
+          <span class="idx">F06</span>
+        </div>
+      </div>
+
+      <div class="preview" data-preview aria-hidden="true">
+        <img src="image_crop_and_resize-8b3ff45c-deeb-4f0a-8799-f6035e7a08cf.jpg" alt="" class="on" data-pimg>
+        <span class="pbrk tl"></span><span class="pbrk br"></span>
+        <div class="prec"><i></i>PREVIEW</div>
+        <div class="plabel" data-plabel>BRANDING</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORKS / CONTACT SHEET ============ -->
+<section class="sec page" id="works">
+  <div class="shell edge">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-mark">03 — Works <span>／ 実績設計</span></div>
+        <h2>作って終わり、に<br>しない。</h2>
+      </div>
+      <p class="lead">1本の映像を、サイト・SNS・営業資料・採用ページ・Googleビジネスへ展開。制作費を“消費”ではなく“蓄積する資産”にします。</p>
+    </div>
+
+    <div class="sheet">
+      <article class="frame big reveal">
+        <div class="img"><img src="image_crop_and_resize-b586fd7d-ef78-4442-bff4-7b1e2da5390e.jpg" alt="企業映像の撮影現場"></div>
+        <div class="cap">
+          <div><h3>応募前の不安を消す、採用・企業PR映像</h3><p>働く人の表情と現場の温度を短い映像に。採用ページやSNSで何度も効く形に編集。</p><div class="tags">CORPORATE · RECRUIT · BRAND STORY</div></div>
+          <span class="no">REEL 01</span>
+        </div>
+      </article>
+      <article class="frame std reveal">
+        <div class="img"><img src="image_crop_and_resize-883c334a-730e-439b-9383-aec8f2a6aa9a.jpg" alt="人物撮影"></div>
+        <div class="cap">
+          <div><h3>採用に効く人物・現場の撮り下ろし</h3><p>Web・SNS・資料で使い回せる写真資産を一度に。</p><div class="tags">PHOTO · RECRUIT</div></div>
+          <span class="no">REEL 02</span>
+        </div>
+      </article>
+      <article class="frame half reveal">
+        <div class="img"><img src="image_crop_and_resize-e0dbb88f-c388-4b47-91df-626518e6aed6.jpg" alt="店舗の検索導線"></div>
+        <div class="cap">
+          <div><h3>地図で比較された瞬間に勝つ店舗導線</h3><p>写真・紹介文・投稿を整え、来店前に安心できる情報設計へ。</p><div class="tags">LOCAL · MEO</div></div>
+          <span class="no">REEL 03</span>
+        </div>
+      </article>
+      <article class="frame half reveal">
+        <div class="img"><img src="image_crop_and_resize-198b0624-cc3d-472e-8e62-59eba9cd1067.jpg" alt="ショート動画運用"></div>
+        <div class="cap">
+          <div><h3>短尺動画を“続く仕組み”にする</h3><p>撮影素材を活用し、継続投稿のフォーマットと編集テンプレを構築。</p><div class="tags">SHORT · SNS</div></div>
+          <span class="no">REEL 04</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROCESS / TIMELINE ============ -->
+<section class="sec screen" id="process">
+  <div class="shell edge">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-mark">04 — Process <span>／ 進め方</span></div>
+        <h2>相談から、<br>成果の出口まで。</h2>
+      </div>
+      <p class="lead">制作前に勝ち筋を決め、撮影で素材を最大化し、納品後の展開まで見る。迷いを減らすため、進行はシンプルに。</p>
+    </div>
+
+    <div class="timeline reveal">
+      <div class="tl-node"><div class="tc">IN 00:00</div><h3>Hearing</h3><div class="jp">ヒアリング</div><p>目的・単価・顧客心理・競合との違いを整理。</p></div>
+      <div class="tl-node"><div class="tc">02:00</div><h3>Planning</h3><div class="jp">設計</div><p>勝てる訴求・構成・撮影内容・投稿展開を設計。</p></div>
+      <div class="tl-node"><div class="tc">04:00</div><h3>Production</h3><div class="jp">制作</div><p>撮影・編集・コピーをまとめて高速に進行。</p></div>
+      <div class="tl-node"><div class="tc">OUT 06:00</div><h3>Delivery</h3><div class="jp">納品・伴走</div><p>掲載・投稿・改善まで必要に応じて伴走。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICE / SPEC SHEETS ============ -->
+<section class="sec page" id="price">
+  <div class="shell edge">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-mark">05 — Price <span>／ 料金の目安</span></div>
+        <h2>頼み方まで、<br>わかりやすく。</h2>
+      </div>
+      <p class="lead">価格は目安です。目的と素材量で調整しますが、最初に予算感が見えるようパッケージ化しました。</p>
+    </div>
+
+    <div class="specs">
+      <article class="spec reveal">
+        <div class="plan"><b>Starter</b></div>
+        <h3>まず見せ方を整える</h3>
+        <div class="price">¥180,000<small> 〜</small></div>
+        <ul>
+          <li>90分ヒアリング / 訴求整理</li>
+          <li>半日撮影</li>
+          <li>ショート動画 3本</li>
+          <li>SNS用写真 20枚前後</li>
+        </ul>
+        <a class="btn" href="#contact">このプランで相談</a>
+      </article>
+
+      <article class="spec feat reveal">
+        <div class="plan"><b>Growth</b><span class="pick">おすすめ</span></div>
+        <h3>採用・集客の主力をつくる</h3>
+        <div class="price">¥420,000<small> 〜</small></div>
+        <ul>
+          <li>ブランド設計 / 構成台本</li>
+          <li>1日撮影</li>
+          <li>メイン動画 1本</li>
+          <li>ショート動画 6本</li>
+          <li>写真 40枚前後 / 投稿文案</li>
+        </ul>
+        <a class="btn solid" href="#contact">このプランで相談</a>
+      </article>
+
+      <article class="spec reveal">
+        <div class="plan"><b>Partner</b></div>
+        <h3>毎月、発信を伸ばす</h3>
+        <div class="price">¥120,000<small> /月〜</small></div>
+        <ul>
+          <li>月次コンテンツ会議</li>
+          <li>投稿企画 / 台本作成</li>
+          <li>ショート動画 月4本〜</li>
+          <li>MEO・SNS改善レポート</li>
+        </ul>
+        <a class="btn" href="#contact">継続運用を相談</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="sec screen" id="contact">
+  <div class="shell edge">
+    <div class="contact-grid">
+      <div>
+        <div class="sec-mark reveal">06 — Contact <span>／ まず話す</span></div>
+        <h2 class="reveal">Roll camera.<span class="en">売り込みではなく、勝ち筋の相談から。まだ曖昧な段階でも大丈夫です。</span></h2>
+        <dl class="contact-list reveal">
+          <li><dt>初回相談</dt><dd>30分無料 ／ オンライン対応</dd></li>
+          <li><dt>制作範囲</dt><dd>映像 ／ 写真 ／ SNS ／ MEO・SEO ／ 広報</dd></li>
+          <li><dt>予算目安</dt><dd>単発 ¥180,000〜 ／ 継続 ¥120,000〜</dd></li>
+        </dl>
+      </div>
+
+      <form class="form reveal" data-form>
+        <div class="field"><label for="name">Name / お名前</label><input id="name" name="name" autocomplete="name" placeholder="山田 太郎"></div>
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+        <div class="field"><label for="message">Brief / 相談内容</label><textarea id="message" name="message" rows="3" placeholder="例）採用向けの動画と、SNS運用を相談したい。"></textarea></div>
+        <button class="btn solid" type="submit">送信する <span class="ar">→</span></button>
+        <p class="form-note">／ 送信でメールアプリが起動します</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="shell">
+    <div class="foot-top">
+      <div>
+        <div class="lg">LML<b>,</b>Co</div>
+        <p class="blurb">見せ方で、売れ方は変わる。映像・写真・設計で、事業の魅力を「選ばれる理由」へ。</p>
+      </div>
+      <nav class="foot-nav" aria-label="フッター">
+        <div class="foot-col">
+          <h4>Capability</h4>
+          <a href="#services">映像 / 写真</a>
+          <a href="#services">ブランディング</a>
+          <a href="#services">SNS / MEO・SEO</a>
+          <a href="#services">広報 / PR</a>
+        </div>
+        <div class="foot-col">
+          <h4>Studio</h4>
+          <a href="#about">About</a>
+          <a href="#works">Works</a>
+          <a href="#process">Process</a>
+          <a href="#price">Price</a>
+        </div>
+      </nav>
+    </div>
+    <div class="foot-bot">
+      <span>LifeMakersLabs — LML,Co</span>
+      <span>END OF REEL · © 2026</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const body = document.body;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* page-load sequence */
+  requestAnimationFrame(() => body.classList.add("loaded"));
+
+  /* mobile nav */
+  const menu = document.querySelector("[data-menu]");
+  menu.addEventListener("click", () => {
+    const open = body.classList.toggle("nav-open");
+    menu.setAttribute("aria-expanded", String(open));
+  });
+  document.querySelectorAll(".nav a").forEach(a => a.addEventListener("click", () => {
+    body.classList.remove("nav-open"); menu.setAttribute("aria-expanded", "false");
+  }));
+
+  /* timecode helpers (24 fps) */
+  const fps = 24;
+  const fmt = (totalFrames) => {
+    const f = Math.floor(totalFrames % fps);
+    const s = Math.floor(totalFrames / fps) % 60;
+    const m = Math.floor(totalFrames / (fps * 60)) % 60;
+    const h = Math.floor(totalFrames / (fps * 3600));
+    const p = n => String(n).padStart(2, "0");
+    return `${p(h)}:${p(m)}:${p(s)}:${p(f)}`;
+  };
+
+  /* persistent HUD: scroll position → timecode + current section */
+  const tcEl = document.querySelector("[data-tc]");
+  const secEl = document.querySelector("[data-sec]");
+  const sections = [...document.querySelectorAll("main section[id], footer")];
+  const nameOf = { "top-hero":"REEL START", about:"01 ABOUT", services:"02 CAPABILITY", works:"03 WORKS", process:"04 PROCESS", price:"05 PRICE", contact:"06 CONTACT" };
+  const REEL = 6 * 60; // 6-minute reel
+  function onScroll(){
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const prog = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+    tcEl.textContent = fmt(prog * REEL * fps);
+    let cur = "REEL START";
+    for (const s of document.querySelectorAll("main section[id]")) {
+      if (s.getBoundingClientRect().top <= window.innerHeight * 0.45) cur = nameOf[s.id] || cur;
+    }
+    secEl.textContent = cur;
+  }
+  window.addEventListener("scroll", onScroll, { passive:true });
+  onScroll();
+
+  /* hero REC clock: real-time ticking (recording feel) */
+  const clk = document.querySelector("[data-clock]");
+  if (clk && !reduce) {
+    const t0 = performance.now();
+    (function tick(now){ clk.textContent = fmt(((now - t0)/1000) * fps); requestAnimationFrame(tick); })(t0);
+  }
+
+  /* services: shot list → preview monitor */
+  const pimg = document.querySelector("[data-pimg]");
+  const plabel = document.querySelector("[data-plabel]");
+  document.querySelectorAll(".shot").forEach(shot => {
+    const set = () => {
+      document.querySelectorAll(".shot").forEach(s => s.classList.remove("active"));
+      shot.classList.add("active");
+      const src = shot.dataset.img;
+      if (pimg && pimg.getAttribute("src") !== src) {
+        pimg.classList.remove("on");
+        const next = new Image();
+        next.onload = () => { pimg.src = src; requestAnimationFrame(() => pimg.classList.add("on")); };
+        next.src = src;
+      }
+      if (plabel) plabel.textContent = shot.dataset.label;
+    };
+    shot.addEventListener("mouseenter", set);
+    shot.addEventListener("focus", set);
+  });
+
+  /* reveal on scroll */
+  const io = new IntersectionObserver((es) => {
+    es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { threshold:.14 });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+  /* form focus states + mailto */
+  const form = document.querySelector("[data-form]");
+  form.querySelectorAll(".field input, .field textarea").forEach(inp => {
+    const f = inp.closest(".field");
+    inp.addEventListener("focus", () => f.classList.add("foc"));
+    inp.addEventListener("blur", () => f.classList.remove("foc"));
+  });
+  const contactEmail = ""; /* TODO: 受信用メールアドレスを設定 */
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const d = new FormData(form);
+    const subject = encodeURIComponent("LML,Co への相談");
+    const bodyText = encodeURIComponent(`お名前: ${d.get("name")||""}\nEmail: ${d.get("email")||""}\n\n相談内容:\n${d.get("message")||""}`);
+    window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${bodyText}`;
+  });
+})();
+</script>
+</body>
+</html>
