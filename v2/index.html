@@ -881,7 +881,16 @@ document.querySelectorAll("[data-work]").forEach(w => {
       const svgText = await res.text();
       const { SVGLoader } = await import("three/addons/loaders/SVGLoader.js");
       const parsed = new SVGLoader().parse(svgText);
-      const shapes = parsed.paths.flatMap(p => SVGLoader.createShapes(p));
+      /* the vector still carries the wordmark glyphs outside the viewBox
+         (x >= ~1146); keep only the mark itself */
+      const shapes = parsed.paths.flatMap(p => SVGLoader.createShapes(p))
+        .filter(sh => {
+          const pts = sh.getPoints(8);
+          if (!pts.length) return false;
+          let minX = Infinity;
+          for (const pt of pts) if (pt.x < minX) minX = pt.x;
+          return minX < 1100;
+        });
       if (shapes.length) {
         const geo = new THREE.ExtrudeGeometry(shapes, {
           depth: 110, curveSegments: 7,
