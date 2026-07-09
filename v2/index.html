@@ -152,6 +152,11 @@ header,main,footer{ position:relative; z-index:1; }
   align-items:center; justify-content:center; text-align:center;
   padding:120px var(--edge) 80px; position:relative;
 }
+#prism{
+  position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; z-index:0;
+}
+.hero > :not(#prism){ position:relative; z-index:1; }
 .hero .hud{ margin-bottom:26px; }
 .wordmark{
   font-family:var(--arch); font-weight:900; text-transform:uppercase;
@@ -389,6 +394,7 @@ header,main,footer{ position:relative; z-index:1; }
 
   <!-- ============ HERO ============ -->
   <section class="hero">
+    <canvas id="prism" aria-hidden="true"></canvas>
     <p class="hud">LifeMakersLabs — state: formless / v2.0</p>
     <h1 class="wordmark">WE<br><em>MAKE.</em></h1>
     <p class="hero-lead">
@@ -630,33 +636,44 @@ header,main,footer{ position:relative; z-index:1; }
       float aspect = u_res.x / u_res.y;
       float t = u_time * 0.35;
 
-      /* deep navy vertical base, breathing slightly with scroll */
-      vec3 col = mix(vec3(0.020,0.028,0.060), vec3(0.038,0.070,0.125),
-                     uv.y * 0.8 + 0.1 + 0.08 * sin(u_scroll * 0.6));
+      /* --- scroll narrative: calm surface -> storm -> deep dive --- */
+      float storm = smoothstep(0.5, 1.6, u_scroll) * (1. - smoothstep(2.6, 4.2, u_scroll));
+      float dive  = smoothstep(0.4, 3.8, u_scroll);
+
+      /* deep navy base; sinks toward violet-black as you dive */
+      vec3 top = mix(vec3(0.020,0.028,0.060), vec3(0.030,0.018,0.062), dive * .8);
+      vec3 bot = mix(vec3(0.038,0.070,0.125), vec3(0.016,0.030,0.078), dive * .7);
+      vec3 col = mix(top, bot, uv.y * 0.8 + 0.1);
+
+      /* underwater light shafts, fading in as you go deeper */
+      float rays = pow(noise(vec2(uv.x * 6. + t * .12, t * .18)), 3.)
+                 * (1. - uv.y) * dive * 0.11;
+      col += prism(uv.x * .5 + t * .05) * rays;
 
       /* --- three silk wave ridges with prism dispersion on crests --- */
       for (int i = 0; i < 3; i++) {
         float fi = float(i);
-        float yc = 0.40 + fi * 0.08 - u_scroll * 0.05;
-        float freq = 2.2 + fi * 1.3;
-        float amp  = 0.055 + fi * 0.02;
-        float sway = sin(t * (0.5 + fi * 0.22));
+        float yc = 0.40 + fi * 0.08 - u_scroll * 0.085;
+        float freq = (2.2 + fi * 1.3) * (1. + storm * .35);
+        float amp  = (0.055 + fi * 0.02) * (1. + storm * 1.5);
+        float sway = sin(t * (0.5 + fi * 0.22) * (1. + storm * .8));
         float h = yc
-          + sin(uv.x * freq * 3.14159 + t * (1. + fi * .4)) * amp * sway
-          + (fbm(vec2(uv.x * 3. + fi * 7., t * .3)) - .5) * 0.06;
+          + sin(uv.x * freq * 3.14159 + t * (1. + fi * .4) * (1. + storm)) * amp * sway
+          + (fbm(vec2(uv.x * 3. + fi * 7., t * .3)) - .5) * 0.06
+          + (fbm(vec2(uv.x * 9. + fi * 3., t * 1.1)) - .5) * 0.05 * storm;
         float d = uv.y - h;
 
         /* soft body below the ridge */
-        float body = smoothstep(0.16, 0.0, d) * smoothstep(-0.5, -0.05, -d) * 0.05;
-        /* bright crest line */
-        float crest = exp(-abs(d) * (90. - fi * 18.));
+        float body = smoothstep(0.16, 0.0, d) * smoothstep(-0.5, -0.05, -d) * (0.05 + storm * 0.03);
+        /* bright crest line — widens and brightens in the storm */
+        float crest = exp(-abs(d) * (90. - storm * 34. - fi * 18.));
 
-        /* spectrum drifts along x over time — dispersion */
-        vec3 spec = prism(uv.x * 0.9 + t * 0.10 + fi * 0.33);
+        /* spectrum drifts along x over time, and shifts hue as you dive */
+        vec3 spec = prism(uv.x * 0.9 + t * 0.10 + fi * 0.33 + dive * 0.38);
         vec3 blue = vec3(0.176, 0.455, 0.722); /* #2D74B8 */
-        vec3 tint = mix(blue, spec, 0.62);
+        vec3 tint = mix(blue, spec, 0.62 + storm * .2);
 
-        col += tint * (crest * (0.34 - fi * 0.06));
+        col += tint * (crest * (0.34 + storm * 0.14 - fi * 0.06));
         col += tint * body;
       }
 
@@ -725,13 +742,26 @@ header,main,footer{ position:relative; z-index:1; }
   resize();
 
   let start = performance.now();
+  let sScroll = 0;
+  const hero = document.querySelector(".hero");
+  const heroKids = hero ? hero.querySelectorAll(".hud,.wordmark,.hero-lead,.hero-cta") : [];
   function frame(now){
     smx += (mx - smx) * .04; smy += (my - smy) * .04;
+    const target = innerHeight ? scrollY / innerHeight : 0;
+    sScroll += (target - sScroll) * .06;
     gl.uniform2f(uRes, canvas.width, canvas.height);
     gl.uniform1f(uTime, (now - start) / 1000);
     gl.uniform2f(uMouse, smx, smy);
-    gl.uniform1f(uScroll, scrollY / innerHeight);
+    gl.uniform1f(uScroll, sScroll);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    /* hero parallax: type drifts up and dissolves as you dive */
+    const p = Math.min(sScroll * 1.25, 1);
+    heroKids.forEach((el, i) => {
+      el.style.transform = `translateY(${-p * (34 + i * 16)}px)`;
+      el.style.opacity = String(1 - p * 1.05);
+    });
+
     if (!reduced) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -761,6 +791,148 @@ document.querySelectorAll("[data-work]").forEach(w => {
   });
   document.querySelectorAll("#nav a").forEach(a =>
     a.addEventListener("click", () => document.body.classList.remove("nav-open")));
+})();
+
+/* ---- glass card tilt (pointer-fine devices only) ---- */
+(function(){
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!matchMedia("(pointer: fine)").matches) return;
+  document.querySelectorAll(".svc, .step, .work, .who-panel").forEach(card => {
+    card.style.willChange = "transform";
+    card.addEventListener("pointerenter", () => {
+      card.style.transition = "transform .1s ease-out";
+    });
+    card.addEventListener("pointermove", e => {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - .5;
+      const y = (e.clientY - r.top) / r.height - .5;
+      card.style.transform =
+        `perspective(760px) rotateY(${(x * 7).toFixed(2)}deg) rotateX(${(-y * 7).toFixed(2)}deg) translateY(-3px)`;
+    });
+    card.addEventListener("pointerleave", () => {
+      card.style.transition = "transform .5s cubic-bezier(.2,.7,.2,1)";
+      card.style.transform = "";
+    });
+  });
+})();
+</script>
+
+<!-- Three.js (MIT / 無料OSS) — jsDelivr CDN (無料) から読み込み -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+/* ==============================================================
+   Hero glass prism — the LML logo (prism + lens) as a physical
+   object: transmissive glass with thin-film iridescence, floating
+   over the wave field. Fails silently if the CDN is unreachable.
+   ============================================================== */
+(async () => {
+  const canvas = document.getElementById("prism");
+  if (!canvas) return;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let THREE, RoomEnvironment;
+  try {
+    THREE = await import("three");
+    ({ RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js"));
+  } catch (e) { return; } /* offline / CDN blocked — page works without it */
+
+  const hero = document.querySelector(".hero");
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, .1, 50);
+  camera.position.set(0, 0, 7);
+
+  /* soft studio environment for glass reflections */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), .05).texture;
+
+  /* colored lights tint the glass toward the brand spectrum */
+  const l1 = new THREE.PointLight(0x6FC6E8, 30, 30); l1.position.set(-4, 3, 4);
+  const l2 = new THREE.PointLight(0xE79FBE, 22, 30); l2.position.set(4, -2, 3);
+  const l3 = new THREE.PointLight(0x2D74B8, 26, 30); l3.position.set(0, 4, -3);
+  scene.add(l1, l2, l3);
+
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: .06,
+    transmission: 1, thickness: 1.4, ior: 1.5,
+    iridescence: 1, iridescenceIOR: 1.32, iridescenceThicknessRange: [120, 480],
+    clearcoat: 1, clearcoatRoughness: .08,
+    envMapIntensity: 1.15, transparent: true
+  });
+
+  const group = new THREE.Group();
+
+  /* prism = triangle (3-sided cylinder), the logo's 三角 */
+  const prismMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 1.7, 3), glassMat);
+  prismMesh.rotation.z = Math.PI / 2;
+  group.add(prismMesh);
+
+  /* lens ring = the logo's 円, orbiting the prism */
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.85, .055, 24, 96), glassMat.clone());
+  ring.material.thickness = .4;
+  group.add(ring);
+
+  /* place right-of-center so the wordmark stays readable */
+  group.position.set(2.35, .55, 0);
+  group.scale.setScalar(.92);
+  scene.add(group);
+
+  function resize(){
+    const r = hero.getBoundingClientRect();
+    const w = Math.max(r.width, 1), h = Math.max(r.height, 1);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    /* pull the prism inward on narrow screens */
+    const nar = w < 760;
+    group.position.set(nar ? 0 : 2.35, nar ? 1.9 : .55, 0);
+    group.scale.setScalar(nar ? .6 : .92);
+  }
+  addEventListener("resize", resize, { passive:true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) resize(); });
+  resize();
+
+  let mx = 0, my = 0, smx = 0, smy = 0;
+  addEventListener("pointermove", e => {
+    mx = e.clientX / innerWidth - .5;
+    my = e.clientY / innerHeight - .5;
+  }, { passive:true });
+
+  /* only render while the hero is on screen */
+  let heroVisible = true;
+  new IntersectionObserver(es => { heroVisible = es[0].isIntersecting; }, { threshold: 0 })
+    .observe(hero);
+
+  const clock = new THREE.Clock();
+  function tick(){
+    if (!reduced) requestAnimationFrame(tick);
+    if (!heroVisible) return;
+    const t = clock.getElapsedTime();
+    smx += (mx - smx) * .05; smy += (my - smy) * .05;
+
+    group.rotation.y = t * .28 + smx * .9;
+    group.rotation.x = Math.sin(t * .35) * .14 + smy * .6;
+    group.position.y = (innerWidth < 760 ? 1.9 : .55) + Math.sin(t * .8) * .12;
+    ring.rotation.x = t * .42;
+    ring.rotation.y = t * .19;
+
+    /* dissolve with scroll, in sync with the hero type */
+    const p = Math.min(scrollY / (innerHeight * .8 || 1), 1);
+    canvas.style.opacity = String(1 - p);
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
