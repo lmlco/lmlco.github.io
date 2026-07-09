@@ -871,16 +871,43 @@ document.querySelectorAll("[data-work]").forEach(w => {
   });
 
   const group = new THREE.Group();
+  let ring = null;
 
-  /* prism = triangle (3-sided cylinder), the logo's 三角 */
-  const prismMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 1.7, 3), glassMat);
-  prismMesh.rotation.z = Math.PI / 2;
-  group.add(prismMesh);
+  /* --- the real LML mark, extruded from its vector into glass --- */
+  let logoBuilt = false;
+  try {
+    const res = await fetch("./lml_mark.svg");
+    if (res.ok) {
+      const svgText = await res.text();
+      const { SVGLoader } = await import("three/addons/loaders/SVGLoader.js");
+      const parsed = new SVGLoader().parse(svgText);
+      const shapes = parsed.paths.flatMap(p => SVGLoader.createShapes(p));
+      if (shapes.length) {
+        const geo = new THREE.ExtrudeGeometry(shapes, {
+          depth: 110, curveSegments: 7,
+          bevelEnabled: true, bevelThickness: 9, bevelSize: 7, bevelSegments: 2
+        });
+        geo.center();
+        const logo = new THREE.Mesh(geo, glassMat);
+        const s = 3.4 / 914;              /* fit the mark to ~3.4 world units */
+        logo.scale.setScalar(s);
+        logo.rotation.x = Math.PI;        /* SVG y-axis points down — flip */
+        group.add(logo);
+        logoBuilt = true;
+        canvas.dataset.logo = "extruded";
+      }
+    }
+  } catch (e) { /* fall through to the conceptual prism */ }
 
-  /* lens ring = the logo's 円, orbiting the prism */
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.85, .055, 24, 96), glassMat.clone());
-  ring.material.thickness = .4;
-  group.add(ring);
+  if (!logoBuilt) {
+    /* fallback: prism = triangle, lens ring = circle (logo concept) */
+    const prismMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 1.7, 3), glassMat);
+    prismMesh.rotation.z = Math.PI / 2;
+    group.add(prismMesh);
+    ring = new THREE.Mesh(new THREE.TorusGeometry(1.85, .055, 24, 96), glassMat.clone());
+    ring.material.thickness = .4;
+    group.add(ring);
+  }
 
   /* place right-of-center so the wordmark stays readable */
   group.position.set(2.35, .55, 0);
@@ -923,8 +950,7 @@ document.querySelectorAll("[data-work]").forEach(w => {
     group.rotation.y = t * .28 + smx * .9;
     group.rotation.x = Math.sin(t * .35) * .14 + smy * .6;
     group.position.y = (innerWidth < 760 ? 1.9 : .55) + Math.sin(t * .8) * .12;
-    ring.rotation.x = t * .42;
-    ring.rotation.y = t * .19;
+    if (ring){ ring.rotation.x = t * .42; ring.rotation.y = t * .19; }
 
     /* dissolve with scroll, in sync with the hero type */
     const p = Math.min(scrollY / (innerHeight * .8 || 1), 1);
