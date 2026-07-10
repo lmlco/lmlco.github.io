@@ -47,8 +47,9 @@ button,input,textarea{ font:inherit; color:inherit; }
 ::selection{ background:var(--ink); color:#fff; }
 :focus-visible{ outline:2px solid var(--blue); outline-offset:3px; }
 
-/* pen-trail canvas behind everything */
-#pen{ position:fixed; inset:0; width:100%; height:100%; z-index:0; display:block; }
+/* scroll ribbon — a thick spectrum line drawn ahead of the scroll */
+#ribbon{ position:absolute; top:0; left:0; z-index:0; pointer-events:none; }
+#smooth > main{ position:relative; z-index:1; }
 
 .mono{ font-family:var(--mono); }
 .hud{
@@ -297,7 +298,6 @@ a:hover .rl i{ transform:translateY(-105%); }
 </head>
 <body>
 
-<canvas id="pen" aria-hidden="true"></canvas>
 <div id="cur-dot" aria-hidden="true"></div>
 <div id="cur-ring" aria-hidden="true"></div>
 
@@ -322,6 +322,7 @@ a:hover .rl i{ transform:translateY(-105%); }
 </header>
 
 <div id="smooth">
+<svg id="ribbon" aria-hidden="true"></svg>
 <main id="top">
 
   <!-- ============ HERO ============ -->
@@ -653,17 +654,27 @@ function splitChars(el){
 }
 document.querySelectorAll(".wordmark .line > span, .statement .row > span, .giant")
   .forEach(splitChars);
-/* gradient EMs: interpolate the brand spectrum across the chars */
-document.querySelectorAll(".wordmark em, .giant em").forEach(em => {
-  const chs = em.querySelectorAll(".ch");
+/* spectrum painter: interpolate the brand rainbow across a set of chars */
+function paintSpectrum(chs){
   const stops = [[45,116,184],[111,198,232],[231,159,190]]; /* blue -> sky -> pink */
   chs.forEach((c, i) => {
     const t = chs.length > 1 ? i / (chs.length - 1) : 0;
     const seg = t < .5 ? 0 : 1, f = t < .5 ? t * 2 : (t - .5) * 2;
     const rgb = stops[seg].map((v, k) => Math.round(v + (stops[seg+1][k] - v) * f));
     c.style.color = `rgb(${rgb.join(",")})`;
-    c.style.webkitTextStroke = "0";
+    c.style.webkitTextStrokeWidth = "0";
   });
+}
+/* hero MAKE. keeps its gradient */
+document.querySelectorAll(".wordmark em").forEach(em =>
+  paintSpectrum([...em.querySelectorAll(".ch")]));
+/* giant titles (Who we are / Services / Works) go full rainbow */
+document.querySelectorAll(".section:not(.contact) .giant").forEach(g =>
+  paintSpectrum([...g.querySelectorAll(".ch")]));
+/* Let's make. — same solid ink as the hero WE */
+document.querySelectorAll(".contact .giant .ch").forEach(c => {
+  c.style.color = "var(--ink)";
+  c.style.webkitTextStrokeWidth = "0";
 });
 
 /* ==================== roll-hover links ==================== */
@@ -681,76 +692,85 @@ document.querySelectorAll("[data-roll]").forEach(a => {
   a.appendChild(rl);
 });
 
-/* ==================== pen trails — ink lines drawing themselves ==================== */
+/* ==================== scroll ribbon — thick line drawn toward the scroll ==================== */
 (function(){
-  const canvas = document.getElementById("pen");
-  const ctx = canvas.getContext("2d");
-  if (!ctx){ canvas.style.display = "none"; return; }
-  let W = 0, H = 0, dpr = 1;
-  function resize(){
-    dpr = Math.min(devicePixelRatio || 1, 1.75);
-    W = Math.max(innerWidth, 1); H = Math.max(innerHeight, 1);
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#FCFCFA"; ctx.fillRect(0, 0, W, H);
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const svg = document.getElementById("ribbon");
+  const smoothEl = document.getElementById("smooth");
+  const NS = "http://www.w3.org/2000/svg";
+  let path = null, totalLen = 0, startY = 0, endY = 0;
+
+  function build(){
+    const W = Math.max(innerWidth, 1);
+    const H = Math.max(smoothEl.scrollHeight, innerHeight, 1);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.innerHTML = "";
+
+    /* vertical spectrum gradient along the whole page */
+    const defs = document.createElementNS(NS, "defs");
+    const grad = document.createElementNS(NS, "linearGradient");
+    grad.setAttribute("id", "rib-grad");
+    grad.setAttribute("gradientUnits", "userSpaceOnUse");
+    grad.setAttribute("x1", 0); grad.setAttribute("y1", 0);
+    grad.setAttribute("x2", 0); grad.setAttribute("y2", H);
+    const STOPS = ["#6FC6E8","#2D74B8","#D5CDEB","#E79FBE","#F6ECC9","#8FD0DE","#6FC6E8"];
+    STOPS.forEach((c, i) => {
+      const s = document.createElementNS(NS, "stop");
+      s.setAttribute("offset", (i / (STOPS.length - 1)).toFixed(3));
+      s.setAttribute("stop-color", c);
+      grad.appendChild(s);
+    });
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    /* one smooth S-curve snaking down the page, section to section */
+    const vh = innerHeight || 800;
+    startY = vh * .72;
+    endY = H - vh * .3;
+    const xs = [.5, .82, .16, .84, .18, .78, .5];   /* left-right weave */
+    const n = Math.max(4, Math.round((endY - startY) / (vh * .85)));
+    const pts = [];
+    for (let i = 0; i <= n; i++){
+      const y = startY + (endY - startY) * (i / n);
+      pts.push([W * xs[i % xs.length], y]);
+    }
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++){
+      const [x0, y0] = pts[i-1], [x1, y1] = pts[i];
+      const cy = (y0 + y1) / 2;
+      d += ` C ${x0} ${cy}, ${x1} ${cy}, ${x1} ${y1}`;
+    }
+    path = document.createElementNS(NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "url(#rib-grad)");
+    path.setAttribute("stroke-width", Math.max(38, Math.min(84, W * .05)));
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("opacity", ".5");
+    svg.appendChild(path);
+    totalLen = path.getTotalLength();
+    path.style.strokeDasharray = totalLen;
+    path.style.strokeDashoffset = REDUCED ? 0 : totalLen;
   }
-  addEventListener("resize", resize, { passive:true });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) resize(); });
-  resize();
+  build();
+  addEventListener("resize", build, { passive:true });
+  new ResizeObserver(() => { if (Math.abs(smoothEl.scrollHeight - parseFloat(svg.getAttribute("height"))) > 4) build(); }).observe(smoothEl);
 
-  let mx = W * .5, my = H * .45;
-  addEventListener("pointermove", e => { mx = e.clientX; my = e.clientY; }, { passive:true });
-
-  /* pens: ambient wanderers + one that chases the pointer */
-  const PENS = [
-    { hue:"22,58,92",   a:.34, w:1.6, sp:1.9,  seed:11, chase:0    },
-    { hue:"22,58,92",   a:.22, w:1.1, sp:2.4,  seed:47, chase:0    },
-    { hue:"45,116,184", a:.30, w:1.4, sp:2.1,  seed:83, chase:0    },
-    { hue:"111,198,232",a:.34, w:1.8, sp:2.6,  seed:29, chase:0    },
-    { hue:"231,159,190",a:.30, w:1.5, sp:2.2,  seed:65, chase:0    },
-    { hue:"22,58,92",   a:.42, w:2.0, sp:0,    seed:5,  chase:.06  } /* pointer pen */
-  ].map(p => ({ ...p, x: Math.random()*W, y: Math.random()*H, ang: Math.random()*6.283, px:0, py:0 }));
-  PENS.forEach(p => { p.px = p.x; p.py = p.y; });
-
-  let t = 0;
+  /* ==================== motion loop: ribbon draw + parallax + sway ==================== */
   function frame(){
     if (!REDUCED) requestAnimationFrame(frame);
-    const { vel } = Smooth.tick();
-    const energy = Math.min(1, Math.abs(vel) * .002);
-    t += .008;
+    const { cur, vel } = Smooth.tick();
 
-    /* the paper slowly re-absorbs the ink (fading trails) */
-    ctx.fillStyle = "rgba(252,252,250,.045)";
-    ctx.fillRect(0, 0, W, H);
-
-    for (const p of PENS){
-      p.px = p.x; p.py = p.y;
-      if (p.chase){
-        /* pointer pen: eases toward the cursor, arcs as it approaches */
-        p.x += (mx - p.x) * p.chase;
-        p.y += (my - p.y) * p.chase;
-        p.x += Math.cos(t * 3 + p.seed) * 1.2;
-        p.y += Math.sin(t * 2.6 + p.seed) * 1.2;
-      } else {
-        /* ambient pen: smooth heading noise, faster when scrolling */
-        p.ang += (Math.sin(t * 1.7 + p.seed) + Math.sin(t * .9 + p.seed * 2.1)) * .045;
-        const s = p.sp * (1 + energy * 2.2);
-        p.x += Math.cos(p.ang) * s;
-        p.y += Math.sin(p.ang) * s;
-        /* soft steer back inside the page */
-        if (p.x < -40) p.ang = 0; if (p.x > W + 40) p.ang = Math.PI;
-        if (p.y < -40) p.ang = Math.PI / 2; if (p.y > H + 40) p.ang = -Math.PI / 2;
-      }
-      ctx.strokeStyle = `rgba(${p.hue},${p.a})`;
-      ctx.lineWidth = p.w;
-      ctx.beginPath();
-      ctx.moveTo(p.px, p.py);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
+    if (path && totalLen){
+      /* the line tip stays drawn ~85%vh ahead of the viewport top —
+         it keeps running toward wherever you are scrolling to */
+      const vh = innerHeight || 1;
+      const tipY = cur + vh * .85 + vel * 2.2;   /* velocity pushes the tip further ahead */
+      const prog = Math.min(1, Math.max(0, (tipY - startY) / Math.max(1, endY - startY)));
+      path.style.strokeDashoffset = totalLen * (1 - prog);
     }
 
-    /* parallax giants + statement sway (text keeps drifting subtly) */
     document.querySelectorAll("[data-parallax]").forEach(el => {
       const k = parseFloat(el.dataset.parallax) || 0;
       const r = el.getBoundingClientRect();
