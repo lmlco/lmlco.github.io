@@ -671,11 +671,13 @@ document.querySelectorAll(".wordmark em").forEach(em =>
 /* giant titles (Who we are / Services / Works) go full rainbow */
 document.querySelectorAll(".section:not(.contact) .giant").forEach(g =>
   paintSpectrum([...g.querySelectorAll(".ch")]));
-/* Let's make. — same solid ink as the hero WE */
+/* Let's make. — mirrors the hero: "Let's" solid ink, "make." rainbow */
 document.querySelectorAll(".contact .giant .ch").forEach(c => {
   c.style.color = "var(--ink)";
   c.style.webkitTextStrokeWidth = "0";
 });
+document.querySelectorAll(".contact .giant em").forEach(em =>
+  paintSpectrum([...em.querySelectorAll(".ch")]));
 
 /* ==================== roll-hover links ==================== */
 document.querySelectorAll("[data-roll]").forEach(a => {
